@@ -55,8 +55,8 @@ window.addEventListener('load', function() {
             this.gameHeight = gameHeight;
 
             this.image = document.getElementById('playerImage');
-            this.width = 63;
-            this.height = 51;
+            this.width = 64;
+            this.height = 47;
             this.x = this.gameWidth / 2;
             this.y = this.gameHeight - this.height;
 
@@ -84,16 +84,7 @@ window.addEventListener('load', function() {
 
         update(input, deltaTime) {
             // collisions
-            asteroids.forEach(asteroid => {
-                const dx = (asteroid.x + asteroid.width/2) - (this.x + this.width/2);
-                const dy = (asteroid.y + asteroid.height/2) - (this.y + this.height/2);
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < asteroid.width/3 + this.width/3) {
-                    // game over
-                    asteroid.markedForDeletion = true;
-                    gameOver = true;
-                }
-            });
+            this.collision();
 
             // horizontal movement
             if (input.keys.indexOf('ArrowRight') > -1) {
@@ -139,10 +130,40 @@ window.addEventListener('load', function() {
                 this.y = 0;
             }
         }
+
+        collision() {
+            asteroids.forEach(asteroid => {
+                if (this.calculateCollision(asteroid.x, asteroid.y, asteroid.width, asteroid.height)) {
+                    asteroid.markedForDeletion = true;
+                }
+            });
+            enemyBeams.forEach(beam => {
+                if(this.calculateCollision(beam.x, beam.y, beam.width, beam.height)) {
+                    beam.markedForDeletion = true;
+                }
+            });
+            mekaShrooms.forEach(meka => {
+                if (this.calculateCollision(meka.x, meka.y, meka.width, meka.height)) {
+                    meka.markedForDeletion = true;
+                }
+            });
+        }
+
+        calculateCollision(x, y, width, height) {
+            const dx = (x + width/2) - (this.x + width/2);
+            const dy = (y + height/2) - (this.y + this.height/2);
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < width/3 + this.width/3) {
+                gameOver = true;
+                return true;
+            }
+
+            return false;
+        }
     }
 
     class Beam {
-        constructor(gameWidth, gameHeight, spawnPosX, spawnPosY) {
+        constructor(gameWidth, gameHeight, spawnPosX, spawnPosY, direction) {
             this.gameWidth = gameWidth;
             this.gameHeight = gameHeight;
 
@@ -171,7 +192,7 @@ window.addEventListener('load', function() {
     }
 
     class EnemyBeam {
-        constructor(gameWidth, gameHeight, spawnPosX, spawnPosY) {
+        constructor(gameWidth, gameHeight, spawnPosX, spawnPosY, direction) {
             this.gameWidth = gameWidth;
             this.gameHeight = gameHeight;
 
@@ -182,6 +203,7 @@ window.addEventListener('load', function() {
             this.height = 17;
 
             this.speed = 10;
+            this.direction = direction;
 
             this.markedForDeletion = false;
         }
@@ -191,6 +213,20 @@ window.addEventListener('load', function() {
         }
 
         update() {
+            switch (this.direction) {
+                case 'Up':
+                    this.y -= this.speed;
+                    break;
+                case 'Down':
+                        this.y += this.speed;
+                        break;
+                case 'Left':
+                    this.x -= this.speed;
+                    break;
+                case 'Right':
+                    this.x += this.speed;
+                    break;
+            }
             this.y += this.speed;
 
             if (this.y > this.gameHeight - this.height) {
@@ -282,9 +318,8 @@ window.addEventListener('load', function() {
                     this.health--;
                     projectile.markedForDeletion = true;
                     if (this.health <= 0) {
-                        console.log('dead');
                         this.markedForDeletion = true;
-                        score += 10;
+                        score += 20;
                     }
                 }
             });
@@ -294,7 +329,7 @@ window.addEventListener('load', function() {
                 // spawn 2 projectiles
                 let offset = 6;
                 for (let i = 0; i < 2; i++) {
-                    projectiles.push(new EnemyBeam(this.gameWidth, this.gameHeight, this.x + offset, this.y + 75));
+                    enemyBeams.push(new EnemyBeam(this.gameWidth, this.gameHeight, this.x + offset, this.y + 75, 'Down'));
                     offset += 65;
                 }
             }
@@ -303,7 +338,7 @@ window.addEventListener('load', function() {
             }
 
             // movement
-            //this.y += this.speed;
+            this.y += this.speed;
 
             // destroy the asteroid when out of bound
             if (this.y > this.gameHeight - this.height) {
@@ -367,6 +402,11 @@ window.addEventListener('load', function() {
             projectile.update();
         });
         projectiles = projectiles.filter(projectile => !projectile.markedForDeletion);
+        enemyBeams.forEach(beam => {
+            beam.draw(ctx);
+            beam.update();
+        });
+        enemyBeams = enemyBeams.filter(beam => !beam.markedForDeletion);
     }
 
     function handleAsteroids(deltaTime) {
@@ -377,7 +417,7 @@ window.addEventListener('load', function() {
                 let randSpawnPosX = Math.random() * canvas.width - 42;
                 asteroids.push(new Asteroid(canvas.width, canvas.height, randSpawnPosX, -canvas.height));
             }
-            randomAsteroidInterval = Math.random() * 1000 + 500;
+            randomAsteroidInterval = Math.floor(Math.random() * 1000) + 500;// random number between 500 - 1000
             asteroidTimer = 0;
         } else {
             asteroidTimer += deltaTime
@@ -391,9 +431,20 @@ window.addEventListener('load', function() {
     }
 
     function handleMekaShroom(deltaTime) {
+        if (mekaTimer > mekaInterval + randomMekaInterval) {
+            for (let i = 0; i < 2; i++) {
+                let randSpawnPosX = Math.random() * canvas.width - 90;
+                mekaShrooms.push(new MekaShroom(canvas.width, canvas.height, randSpawnPosX, 0));
+            }
+            randomMekaInterval = Math.floor(Math.random() * 4000) + 3000;
+            mekaTimer = 0;
+        } else {
+            mekaTimer += deltaTime;
+        }
+
         mekaShrooms.forEach(mek => {
-            //mek.draw(ctx);
-            //mek.update(deltaTime);
+            mek.draw(ctx);
+            mek.update(deltaTime);
         });
         mekaShrooms = mekaShrooms.filter(mek => !mek.markedForDeletion);
     }
@@ -405,6 +456,7 @@ window.addEventListener('load', function() {
         asteroids = [];
         mekaShrooms = [];
         projectiles = [];
+        enemyBeams = [];
 
         score = 0;
         gameOver = false;
@@ -415,14 +467,16 @@ window.addEventListener('load', function() {
     const input = new InputHandler();
     const background = new Background(canvas.width, canvas.height, 'backgroundImage');
     const player = new Player(canvas.width, canvas.height);
-    const meka = new MekaShroom(canvas.width, canvas.height, canvas.width/2, canvas.height/2);
-    mekaShrooms.push(meka, 1);
 
     let lastTime = 0;
 
     let asteroidTimer = 0;
     let asteroidInterval = 1000;
     let randomAsteroidInterval = Math.floor(Math.random() * 1000) + 500;// random number between 500 - 1000
+
+    let mekaTimer = 0;
+    let mekaInterval = 5000;
+    let randomMekaInterval = Math.floor(Math.random() * 5000) + 4000;
 
     // main
     function animate(timeStamp) {
@@ -440,7 +494,7 @@ window.addEventListener('load', function() {
 
         handleProjectiles();
         handleMekaShroom(deltaTime);
-        //handleAsteroids(deltaTime);
+        handleAsteroids(deltaTime);
 
         displayUI(ctx);
 
