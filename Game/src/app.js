@@ -8,7 +8,10 @@ window.addEventListener('load', function() {
     let gameOver = false;
 
     let projectiles = [];
+    let enemyBeams = [];
+    
     let asteroids = [];
+    let mekaShrooms = [];
 
     class InputHandler {
         constructor() {
@@ -109,7 +112,7 @@ window.addEventListener('load', function() {
             // fire projectiles
             if (input.keys.indexOf(' ') > -1 && this.fireRate <= 0) {
                 this.fireRate = this.resetFireRate;
-                projectiles.push(new Beam(this.gameWidth, this.gameHeight, this.x + this.width/2 - 5, this.y));
+                projectiles.push(new Beam(this.gameWidth, this.gameHeight, this.x + this.width/2 - 15, this.y));
                 // spawn 2 projectiles
                 //let offset = 0;
                 //for (let i = 0; i < 2; i++) {
@@ -167,6 +170,35 @@ window.addEventListener('load', function() {
         }
     }
 
+    class EnemyBeam {
+        constructor(gameWidth, gameHeight, spawnPosX, spawnPosY) {
+            this.gameWidth = gameWidth;
+            this.gameHeight = gameHeight;
+
+            this.image = document.getElementById('enemyBeamImage');
+            this.x = spawnPosX;
+            this.y = spawnPosY;
+            this.width = 12;
+            this.height = 17;
+
+            this.speed = 10;
+
+            this.markedForDeletion = false;
+        }
+
+        draw(context) {
+            context.drawImage(this.image, this.x, this.y, this.width, this.height);
+        }
+
+        update() {
+            this.y += this.speed;
+
+            if (this.y > this.gameHeight - this.height) {
+                this.markedForDeletion = true;
+            }
+        }
+    }
+
     class Asteroid {
         constructor(gameWidth, gameHeight, spawnPosX, spawnPosY) {
             this.gameWidth = gameWidth;
@@ -207,6 +239,71 @@ window.addEventListener('load', function() {
             });
             // movement
             this.y += this.speed;
+
+            // destroy the asteroid when out of bound
+            if (this.y > this.gameHeight - this.height) {
+                this.markedForDeletion = true;
+            }
+        }
+    }
+
+    class MekaShroom {
+        constructor(gameWidth, gameHeight, spawnPosX, spawnPosY) {
+            this.gameWidth = gameWidth;
+            this.gameHeight = gameHeight;
+
+            this.image = document.getElementById('mekaShroomImage');
+            this.x = spawnPosX;
+            this.y = spawnPosY;
+            this.width = 90;
+            this.height = 74;
+
+            this.speed = 5;
+
+            this.fireRate = 1000;
+            this.resetFireRate = this.fireRate;
+
+            this.health = 2;
+
+            this.markedForDeletion = false;
+        }
+
+        draw(context) {
+            context.drawImage(this.image, this.x, this.y, this.width, this.height);
+        }
+
+        update(deltaTime) {
+            // collision
+            projectiles.forEach(projectile => {
+                const dx = (projectile.x + projectile.width/2) - (this.x + this.width/2);
+                const dy = (projectile.y + projectile.height/2) - (this.y + this.height/2);
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < projectile.width/3 + this.width/3) {
+                    this.health--;
+                    projectile.markedForDeletion = true;
+                    if (this.health <= 0) {
+                        console.log('dead');
+                        this.markedForDeletion = true;
+                        score += 10;
+                    }
+                }
+            });
+
+            if (this.fireRate <= 0) {
+                this.fireRate = this.resetFireRate;
+                // spawn 2 projectiles
+                let offset = 6;
+                for (let i = 0; i < 2; i++) {
+                    projectiles.push(new EnemyBeam(this.gameWidth, this.gameHeight, this.x + offset, this.y + 75));
+                    offset += 65;
+                }
+            }
+            else {
+                this.fireRate -= deltaTime;
+            }
+
+            // movement
+            //this.y += this.speed;
 
             // destroy the asteroid when out of bound
             if (this.y > this.gameHeight - this.height) {
@@ -293,11 +390,20 @@ window.addEventListener('load', function() {
         asteroids = asteroids.filter(asteroid => !asteroid.markedForDeletion);
     }
 
+    function handleMekaShroom(deltaTime) {
+        mekaShrooms.forEach(mek => {
+            //mek.draw(ctx);
+            //mek.update(deltaTime);
+        });
+        mekaShrooms = mekaShrooms.filter(mek => !mek.markedForDeletion);
+    }
+
     function restartGame() {
         player.restart();
         background.restart();
 
         asteroids = [];
+        mekaShrooms = [];
         projectiles = [];
 
         score = 0;
@@ -309,13 +415,14 @@ window.addEventListener('load', function() {
     const input = new InputHandler();
     const background = new Background(canvas.width, canvas.height, 'backgroundImage');
     const player = new Player(canvas.width, canvas.height);
+    const meka = new MekaShroom(canvas.width, canvas.height, canvas.width/2, canvas.height/2);
+    mekaShrooms.push(meka, 1);
 
     let lastTime = 0;
 
     let asteroidTimer = 0;
     let asteroidInterval = 1000;
-    // random number between 500 - 1000
-    let randomAsteroidInterval = Math.floor(Math.random() * 1000) + 500;//Math.random() * 1000 + 500;
+    let randomAsteroidInterval = Math.floor(Math.random() * 1000) + 500;// random number between 500 - 1000
 
     // main
     function animate(timeStamp) {
@@ -332,7 +439,8 @@ window.addEventListener('load', function() {
         player.update(input, deltaTime);
 
         handleProjectiles();
-        handleAsteroids(deltaTime);
+        handleMekaShroom(deltaTime);
+        //handleAsteroids(deltaTime);
 
         displayUI(ctx);
 
