@@ -1,3 +1,3 @@
 # SpaceShooter
 
-Open the file index.html to start the game.
+Open the file index.html (inside Game file) to start the game.
