@@ -72,7 +72,7 @@ window.addEventListener('load', function() {
         }
 
         draw(context) {
-            context.drawImage(this.image, this.x, this.y);
+            context.drawImage(this.image, this.x, this.y, this.width, this.height);
             
             // collider visual
             //context.lineWidth = 5;
@@ -344,6 +344,34 @@ window.addEventListener('load', function() {
             if (this.y > this.gameHeight - this.height) {
                 this.markedForDeletion = true;
             }
+        }
+    }
+
+    class ExplosionEffect {
+        constructor(gameWidth, gameHeight, width, height, maxFrame, imageId) {
+            this.gameWidth = gameWidth;
+            this.gameHeight = gameHeight;
+
+            this.image = document.getElementById(imageId);
+            this.x = 0;
+            this.y = 0;
+            this.width = width;
+            this.height = height;
+
+            this.frameX = 0;
+            this.maxFrame = maxFrame;
+
+            this.fps = 20;
+            this.frameTimer = 0;
+            this.frameInterval = 1000/this.fps;
+        }
+
+        draw(context) {
+            
+        }
+
+        update(deltaTime) {
+
         }
     }
 
