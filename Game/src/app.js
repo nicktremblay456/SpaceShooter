@@ -348,26 +348,36 @@ window.addEventListener('load', function() {
     }
 
     class ExplosionEffect {
-        constructor(gameWidth, gameHeight, width, height, maxFrame, imageId) {
-            this.gameWidth = gameWidth;
-            this.gameHeight = gameHeight;
-
+        constructor(spawnPosX, spawnPosY, width, height, maxFrame, imageId) {
             this.image = document.getElementById(imageId);
-            this.x = 0;
-            this.y = 0;
-            this.width = width;
-            this.height = height;
-
+            this.x = spawnPosX;
+            this.y = spawnPosY;
+            
             this.frameX = 0;
             this.maxFrame = maxFrame;
+            // sprite sheet image width divided by the number of sprite per row
+            this.width = width / maxFrame;
+            this.height = height;
 
             this.fps = 20;
             this.frameTimer = 0;
             this.frameInterval = 1000/this.fps;
+
+            this.markedForDeletion = false;
         }
 
         draw(context) {
-            
+            // img, sX, sY, sW, sH, dX, dY, dW, dH
+            context.drawImage(this.image, this.width * this.frameX, this.height, this.width, this.height,
+                this.x, this.y, this.width, this.height);
+        
+            //context.strokeStyle = 'green';
+            //context.beginPath();
+            //context.arc(this.x + this.width/2, this.y + this.height/2, this.width/3, 0, Math.PI * 2);
+            //context.stroke();
+
+            if (this.frameX < this.maxFrame) this.frameX++;
+            else this.frameX = 0;
         }
 
         update(deltaTime) {
@@ -495,6 +505,7 @@ window.addEventListener('load', function() {
     const input = new InputHandler();
     const background = new Background(canvas.width, canvas.height, 'backgroundImage');
     const player = new Player(canvas.width, canvas.height);
+    const effect = new ExplosionEffect(canvas.width/2, canvas.height/2, 180, 30, 5, 'asteroidExplosionImage');
 
     let lastTime = 0;
 
@@ -520,9 +531,11 @@ window.addEventListener('load', function() {
         player.draw(ctx);
         player.update(input, deltaTime);
 
+        effect.draw(ctx);
+
         handleProjectiles();
-        handleMekaShroom(deltaTime);
-        handleAsteroids(deltaTime);
+        //handleMekaShroom(deltaTime);
+        //handleAsteroids(deltaTime);
 
         displayUI(ctx);
 
