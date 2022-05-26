@@ -9,9 +9,7 @@ window.addEventListener('load', function() {
 
     let projectiles = [];
     let enemyBeams = [];
-
     let effects = [];
-
     let enemies = [];
 
     class InputHandler {
@@ -449,9 +447,10 @@ window.addEventListener('load', function() {
             this.y = spawnPosY;
             
             this.frameX = 0;
+            this.frameY = 0;
             this.maxFrame = maxFrame;
             // sprite sheet image width divided by the number of sprite per row
-            this.width = width / maxFrame;
+            this.width = width / this.maxFrame;
             this.height = height;
 
             this.fps = 20;
@@ -671,6 +670,6 @@ window.addEventListener('load', function() {
         }
     }
 
-    // start game
+    // call function animate to start the game
     animate(0);
 });
