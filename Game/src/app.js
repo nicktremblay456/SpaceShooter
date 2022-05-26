@@ -9,6 +9,8 @@ window.addEventListener('load', function() {
 
     let projectiles = [];
     let enemyBeams = [];
+
+    effects = [];
     
     let asteroids = [];
     let mekaShrooms = [];
@@ -270,6 +272,7 @@ window.addEventListener('load', function() {
                 if (distance < projectile.width/3 + this.width/3) {
                     projectile.markedForDeletion = true;
                     this.markedForDeletion = true;
+                    effects.push(new ExplosionEffect(this.x, this.y, 656, 72, 8, 'asteroidExplosionImage'));
                     score += 10;
                 }
             });
@@ -319,6 +322,7 @@ window.addEventListener('load', function() {
                     projectile.markedForDeletion = true;
                     if (this.health <= 0) {
                         this.markedForDeletion = true;
+                        effects.push(new ExplosionEffect(this.x, this.y, 204, 34, 6, 'asteroidExplosionImage'));
                         score += 20;
                     }
                 }
@@ -354,9 +358,10 @@ window.addEventListener('load', function() {
             this.y = spawnPosY;
             
             this.frameX = 0;
+            this.frameY = 0;
             this.maxFrame = maxFrame;
             // sprite sheet image width divided by the number of sprite per row
-            this.width = width / maxFrame;
+            this.width = width / this.maxFrame;
             this.height = height;
 
             this.fps = 20;
@@ -368,20 +373,24 @@ window.addEventListener('load', function() {
 
         draw(context) {
             // img, sX, sY, sW, sH, dX, dY, dW, dH
-            context.drawImage(this.image, this.width * this.frameX, this.height, this.width, this.height,
-                this.x, this.y, this.width, this.height);
-        
-            //context.strokeStyle = 'green';
-            //context.beginPath();
-            //context.arc(this.x + this.width/2, this.y + this.height/2, this.width/3, 0, Math.PI * 2);
-            //context.stroke();
-
-            if (this.frameX < this.maxFrame) this.frameX++;
-            else this.frameX = 0;
+            context.drawImage(this.image, this.frameX * this.width, this.frameY * this.height, 
+            this.width, this.height, this.x, this.y, this.width, this.height);
         }
 
         update(deltaTime) {
-
+            if (this.frameTimer > this.frameInterval) {
+                if (this.frameX >= this.maxFrame) {
+                    //this.frameX = 0;// reset animation
+                    this.markedForDeletion = true;
+                } 
+                else {
+                    this.frameX++;
+                }
+                this.frameTimer = 0;
+            }
+            else {
+                this.frameTimer += deltaTime
+            }
         }
     }
 
@@ -466,6 +475,12 @@ window.addEventListener('load', function() {
             asteroid.update();
         });
         asteroids = asteroids.filter(asteroid => !asteroid.markedForDeletion);
+    
+        effects.forEach(effect => {
+            effect.draw(ctx);
+            effect.update(deltaTime);
+        });
+        effects = effects.filter(effect => !effect.markedForDeletion);
     }
 
     function handleMekaShroom(deltaTime) {
@@ -493,6 +508,7 @@ window.addEventListener('load', function() {
 
         asteroids = [];
         mekaShrooms = [];
+        effect = [];
         projectiles = [];
         enemyBeams = [];
 
@@ -505,7 +521,6 @@ window.addEventListener('load', function() {
     const input = new InputHandler();
     const background = new Background(canvas.width, canvas.height, 'backgroundImage');
     const player = new Player(canvas.width, canvas.height);
-    const effect = new ExplosionEffect(canvas.width/2, canvas.height/2, 180, 30, 5, 'asteroidExplosionImage');
 
     let lastTime = 0;
 
@@ -531,11 +546,9 @@ window.addEventListener('load', function() {
         player.draw(ctx);
         player.update(input, deltaTime);
 
-        effect.draw(ctx);
-
         handleProjectiles();
         //handleMekaShroom(deltaTime);
-        //handleAsteroids(deltaTime);
+        handleAsteroids(deltaTime);
 
         displayUI(ctx);
 
@@ -545,6 +558,6 @@ window.addEventListener('load', function() {
         }
     }
 
-    // start game
+    // call function animate to start the game
     animate(0);
 });
