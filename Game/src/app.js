@@ -9,9 +9,10 @@ window.addEventListener('load', function() {
 
     let projectiles = [];
     let enemyBeams = [];
-    
-    let asteroids = [];
-    let mekaShrooms = [];
+
+    let effects = [];
+
+    let enemies = [];
 
     class InputHandler {
         constructor() {
@@ -132,19 +133,9 @@ window.addEventListener('load', function() {
         }
 
         collision() {
-            asteroids.forEach(asteroid => {
-                if (this.calculateCollision(asteroid.x, asteroid.y, asteroid.width, asteroid.height)) {
-                    asteroid.markedForDeletion = true;
-                }
-            });
-            enemyBeams.forEach(beam => {
-                if(this.calculateCollision(beam.x, beam.y, beam.width, beam.height)) {
-                    beam.markedForDeletion = true;
-                }
-            });
-            mekaShrooms.forEach(meka => {
-                if (this.calculateCollision(meka.x, meka.y, meka.width, meka.height)) {
-                    meka.markedForDeletion = true;
+            enemies.forEach(enemy => {
+                if (this.calculateCollision(enemy.x, enemy.y, enemy.width, enemy.height)) {
+                    enemy.markedForDeletion = true;
                 }
             });
         }
@@ -192,7 +183,7 @@ window.addEventListener('load', function() {
     }
 
     class EnemyBeam {
-        constructor(gameWidth, gameHeight, spawnPosX, spawnPosY, direction) {
+        constructor(gameWidth, gameHeight, spawnPosX, spawnPosY, speed, direction) {
             this.gameWidth = gameWidth;
             this.gameHeight = gameHeight;
 
@@ -202,7 +193,7 @@ window.addEventListener('load', function() {
             this.width = 12;
             this.height = 17;
 
-            this.speed = 10;
+            this.speed = speed;
             this.direction = direction;
 
             this.markedForDeletion = false;
@@ -218,18 +209,38 @@ window.addEventListener('load', function() {
                     this.y -= this.speed;
                     break;
                 case 'Down':
-                        this.y += this.speed;
-                        break;
+                    this.y += this.speed;
+                    break;
                 case 'Left':
                     this.x -= this.speed;
                     break;
                 case 'Right':
                     this.x += this.speed;
                     break;
+                case 'Up Left':
+                    this.y -= this.speed;
+                    this.x -= this.speed;
+                    break;
+                case 'Up Right':
+                    this.y -= this.speed;
+                    this.x += this.speed;
+                    break;
+                case 'Down Left':
+                    this.y += this.speed;
+                    this.x -= this.speed;
+                    break;
+                case 'Down Right':
+                    this.y += this.speed;
+                    this.x += this.speed;
+                    break;
             }
             this.y += this.speed;
 
-            if (this.y > this.gameHeight - this.height) {
+            // apply horizontal and vertical boundary
+            if (this.x < 0 ||
+                this.x > this.gameWidth - this.width ||
+                this.y > this.gameHeight - this.height ||
+                this.y < 0) {
                 this.markedForDeletion = true;
             }
         }
@@ -270,6 +281,7 @@ window.addEventListener('load', function() {
                 if (distance < projectile.width/3 + this.width/3) {
                     projectile.markedForDeletion = true;
                     this.markedForDeletion = true;
+                    effects.push(new ExplosionEffect(this.x, this.y, 656, 72, 8, 'asteroidExplosionImage'));
                     score += 10;
                 }
             });
@@ -319,6 +331,7 @@ window.addEventListener('load', function() {
                     projectile.markedForDeletion = true;
                     if (this.health <= 0) {
                         this.markedForDeletion = true;
+                        effects.push(new ExplosionEffect(this.x + this.width/2, this.y + this.height/2, 180, 30, 6, 'mekaExplosionImage'));
                         score += 20;
                     }
                 }
@@ -329,7 +342,7 @@ window.addEventListener('load', function() {
                 // spawn 2 projectiles
                 let offset = 6;
                 for (let i = 0; i < 2; i++) {
-                    enemyBeams.push(new EnemyBeam(this.gameWidth, this.gameHeight, this.x + offset, this.y + 75, 'Down'));
+                    enemyBeams.push(new EnemyBeam(this.gameWidth, this.gameHeight, this.x + offset, this.y + 75, 5, 'Down'));
                     offset += 65;
                 }
             }
@@ -340,7 +353,89 @@ window.addEventListener('load', function() {
             // movement
             this.y += this.speed;
 
-            // destroy the asteroid when out of bound
+            // destroy the meka when out of bound
+            if (this.y > this.gameHeight - this.height) {
+                this.markedForDeletion = true;
+            }
+        }
+    }
+
+    class TurtleShip {
+        constructor(gameWidth, gameHeight, spawnPosX, spawnPosY) {
+            this.gameWidth = gameWidth;
+            this.gameHeight = gameHeight;
+
+            this.image = document.getElementById('turtleShipImage');
+            this.x = spawnPosX;
+            this.y = spawnPosY;
+            this.width = 98;
+            this.height = 87;
+
+            this.speed = 2;
+
+            this.fireRate = 1500;
+            this.resetFireRate = this.fireRate;
+
+            this.health = 5;
+
+            this.markedForDeletion = false;
+        }
+
+        draw(context) {
+            context.drawImage(this.image, this.x, this.y, this.width, this.height);
+
+            // collider visual
+            //context.lineWidth = 5;
+            //context.strokeStyle = 'green';
+            //context.beginPath();
+            //context.arc(this.x + this.width/2, this.y + this.height/2, this.width/3, 0, Math.PI * 2);
+            //context.stroke();
+        }
+
+        update(deltaTime) {
+            // collision
+            projectiles.forEach(projectile => {
+                const dx = (projectile.x + projectile.width/2) - (this.x + this.width/2);
+                const dy = (projectile.y + projectile.height/2) - (this.y + this.height/2);
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < projectile.width/3 + this.width/3) {
+                    this.health--;
+                    projectile.markedForDeletion = true;
+                    if (this.health <= 0) {
+                        this.markedForDeletion = true;
+                        effects.push(new ExplosionEffect(this.x + 30, this.y + 30, 216, 36, 6, 'turtleExplosionImage'));
+                        score += 50;
+                    }
+                }
+            });
+
+            if (this.fireRate <= 0) {
+                this.fireRate = this.resetFireRate;
+                // spawn 3 projectiles
+                let direction = '';
+                for (let i = 0; i < 3; i++) {
+                    switch(i) {
+                        case 0:
+                            direction = 'Down';
+                            break;
+                        case 1: 
+                            direction = 'Down Left';
+                            break;
+                        case 2:
+                            direction = 'Down Right';
+                            break;
+                    }
+                    enemyBeams.push(new EnemyBeam(this.gameWidth, this.gameHeight, this.x + 45, this.y + 55, 5, direction));
+                }
+            }
+            else {
+                this.fireRate -= deltaTime;
+            }
+
+            // movement
+            this.y += this.speed;
+
+            // destroy the turtle when out of bound
             if (this.y > this.gameHeight - this.height) {
                 this.markedForDeletion = true;
             }
@@ -368,20 +463,28 @@ window.addEventListener('load', function() {
 
         draw(context) {
             // img, sX, sY, sW, sH, dX, dY, dW, dH
-            context.drawImage(this.image, this.width * this.frameX, this.height, this.width, this.height,
+            context.drawImage(this.image, this.frameX * this.width, 0 * this.height, this.width, this.height,
                 this.x, this.y, this.width, this.height);
         
             //context.strokeStyle = 'green';
             //context.beginPath();
             //context.arc(this.x + this.width/2, this.y + this.height/2, this.width/3, 0, Math.PI * 2);
             //context.stroke();
-
-            if (this.frameX < this.maxFrame) this.frameX++;
-            else this.frameX = 0;
         }
 
         update(deltaTime) {
-
+            if (this.frameTimer > this.frameInterval) {
+                if (this.frameX >= this.maxFrame) {
+                    //this.frameX = 0; // Restart animation
+                    this.markedForDeletion = true;
+                }
+                else {
+                    this.frameX++;
+                }
+                this.frameTimer = 0;
+            } else {
+                this.frameTimer += deltaTime
+            }
         }
     }
 
@@ -424,17 +527,17 @@ window.addEventListener('load', function() {
         context.fillText("Score: " + score, 20, 50);
         context.fillStyle = "white";
         context.fillText("Score: " + score, 22, 52);
-        if (gameOver)
-        {
+        if (gameOver) {
             context.textAlign = "center";
             context.fillStyle = "black";
             context.fillText("Game Over, Press Enter To Restart!", canvas.width/2, 200);
-            context.fillStyle = "white";
+            context.fillStyle = "red";
             context.fillText("Game Over, Press Enter To Restart!", canvas.width/2 + 2, 202);
         }
     }
 
-    function handleProjectiles() {
+    // Also handle effects
+    function handleProjectiles(deltaTime) {
         projectiles.forEach(projectile => {
             projectile.draw(ctx);
             projectile.update();
@@ -445,67 +548,82 @@ window.addEventListener('load', function() {
             beam.update();
         });
         enemyBeams = enemyBeams.filter(beam => !beam.markedForDeletion);
+
+        effects.forEach(effect => {
+            effect.draw(ctx);
+            effect.update(deltaTime);
+        });
+        effects = effects.filter(effect => !effect.markedForDeletion);
     }
 
-    function handleAsteroids(deltaTime) {
-        let rand = Math.floor(Math.random() * 10) + 1;
+    function generateAsteroids(deltaTime) {
+        let randomAmount = Math.floor(Math.random() * 10) + 1;
         
         if (asteroidTimer > asteroidInterval + randomAsteroidInterval) {
-            for(let i = 0; i < rand; i++) {
+            for(let i = 0; i < randomAmount; i++) {
                 let randSpawnPosX = Math.random() * canvas.width - 42;
-                asteroids.push(new Asteroid(canvas.width, canvas.height, randSpawnPosX, -canvas.height));
+                enemies.push(new Asteroid(canvas.width, canvas.height, randSpawnPosX, -canvas.height));
             }
             randomAsteroidInterval = Math.floor(Math.random() * 1000) + 500;// random number between 500 - 1000
             asteroidTimer = 0;
         } else {
             asteroidTimer += deltaTime
         }
-
-        asteroids.forEach(asteroid => {
-            asteroid.draw(ctx);
-            asteroid.update();
-        });
-        asteroids = asteroids.filter(asteroid => !asteroid.markedForDeletion);
     }
 
-    function handleMekaShroom(deltaTime) {
+    function generateMekaShroom(deltaTime) {
         if (mekaTimer > mekaInterval + randomMekaInterval) {
+            let randSpawnPosX = Math.floor(Math.random() * canvas.width - 90) + 90;
             for (let i = 0; i < 2; i++) {
-                let randSpawnPosX = Math.random() * canvas.width - 90;
-                mekaShrooms.push(new MekaShroom(canvas.width, canvas.height, randSpawnPosX, 0));
+                enemies.push(new MekaShroom(canvas.width, canvas.height, randSpawnPosX, 0));
+                randSpawnPosX += 100;
             }
             randomMekaInterval = Math.floor(Math.random() * 4000) + 3000;
             mekaTimer = 0;
         } else {
             mekaTimer += deltaTime;
         }
+    }
 
-        mekaShrooms.forEach(mek => {
-            mek.draw(ctx);
-            mek.update(deltaTime);
+    function generateTurtleShip(deltaTime) {
+        if (turtleTimer > turtleInterval + randomTurtleInterval) {
+            console.log('generated');
+            let randSpawnPosX = Math.floor(Math.random() * canvas.width - 98) + 98;
+            enemies.push(new TurtleShip(canvas.width, canvas.height, randSpawnPosX, 0));
+            randomTurtleInterval = Math.floor(Math.random() * 4000) + 3000;
+            turtleTimer = 0;
+        } else {
+            turtleTimer += deltaTime;
+        }
+    }
+
+    function handleEnemies(deltaTime) {
+        enemies.forEach(enemy => {
+            enemy.draw(ctx);
+            enemy.update(deltaTime);
         });
-        mekaShrooms = mekaShrooms.filter(mek => !mek.markedForDeletion);
+        enemies = enemies.filter(enemy => !enemy.markedForDeletion);
     }
 
     function restartGame() {
         player.restart();
         background.restart();
 
-        asteroids = [];
-        mekaShrooms = [];
+        enemies = [];
         projectiles = [];
         enemyBeams = [];
+        effects = [];
 
         score = 0;
         gameOver = false;
 
+        // restart game
         animate(0);
     }
 
     const input = new InputHandler();
     const background = new Background(canvas.width, canvas.height, 'backgroundImage');
     const player = new Player(canvas.width, canvas.height);
-    const effect = new ExplosionEffect(canvas.width/2, canvas.height/2, 180, 30, 5, 'asteroidExplosionImage');
 
     let lastTime = 0;
 
@@ -514,8 +632,12 @@ window.addEventListener('load', function() {
     let randomAsteroidInterval = Math.floor(Math.random() * 1000) + 500;// random number between 500 - 1000
 
     let mekaTimer = 0;
-    let mekaInterval = 5000;
-    let randomMekaInterval = Math.floor(Math.random() * 5000) + 4000;
+    let mekaInterval = 3500;
+    let randomMekaInterval = Math.floor(Math.random() * 4000) + 3000;
+
+    let turtleTimer = 0;
+    let turtleInterval = 5000;
+    let randomTurtleInterval = Math.floor(Math.random() * 4000) + 3000;
 
     // main
     function animate(timeStamp) {
@@ -531,11 +653,15 @@ window.addEventListener('load', function() {
         player.draw(ctx);
         player.update(input, deltaTime);
 
-        effect.draw(ctx);
-
-        handleProjectiles();
-        //handleMekaShroom(deltaTime);
-        //handleAsteroids(deltaTime);
+        handleProjectiles(deltaTime);
+        generateAsteroids(deltaTime);
+        if (score >= 1500) {
+            generateMekaShroom(deltaTime);
+        }
+        if (score >= 3000) {
+            generateTurtleShip(deltaTime);
+        }
+        handleEnemies(deltaTime);
 
         displayUI(ctx);
 
