@@ -13,6 +13,12 @@ window.addEventListener('load', function() {
     let effects = [];
     let powerUps = [];
 
+    let powerUpType = {
+        Projectile: 'img/items/power-up-1.png',
+        Beam: 'img/items/power-up-2.png',
+        Restore: 'img/items/power-up-3.png'
+    };
+
     let playerBeamInfos = [ {
             width: 16,
             height: 18,
@@ -160,7 +166,7 @@ window.addEventListener('load', function() {
 
         fire() {
             //projectiles.push(new Beam(this.gameWidth, this.gameHeight, this.x + this.width/2 - 10, this.y, playerBeamInfo));
-            let offset = 25;
+            let offset;
             switch(playerBeamAmount) {
                 case 1:
                     switch(playerBeamLevel) {
@@ -210,8 +216,20 @@ window.addEventListener('load', function() {
             });
             powerUps.forEach(powerUp => {
                 if (this.calculateCollision(powerUp.x, powerUp.y, powerUp.width, powerUp.height)) {
-                    if (playerBeamLevel < playerBeamInfos.length - 1) {
-                        playerBeamLevel++;
+                    switch(powerUp.type) {
+                        case powerUpType.Projectile:
+                            if (playerBeamAmount < 3) {
+                                playerBeamAmount++;
+                            }
+                            break;
+                        case powerUpType.Beam:
+                            if (playerBeamLevel < playerBeamInfos.length - 1) {
+                                playerBeamLevel++;
+                            }
+                            break;
+                        case powerUpType.Restore:
+                            // Restore 1 hp
+                            break;
                     }
                     powerUp.markedForDeletion = true;
                 }
@@ -270,8 +288,8 @@ window.addEventListener('load', function() {
             this.image = document.getElementById('enemyBeamImage');
             this.x = spawnPosX;
             this.y = spawnPosY;
-            this.width = 13;
-            this.height = 13;
+            this.width = 20;
+            this.height = 20;
 
             this.speed = speed;
             this.direction = direction;
@@ -360,9 +378,15 @@ window.addEventListener('load', function() {
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 if (distance < projectile.width/3 + this.width/3) {
                     projectile.markedForDeletion = true;
-                    this.markedForDeletion = true;
                     effects.push(new Effect(this.x, this.y, 656, 72, 8, 'asteroidExplosionImage'));
                     score += 10;
+                    if (playerBeamLevel == 0) {
+                        let rand = Math.floor(Math.random() * 101);
+                        if (rand <= 75) {
+                            powerUps.push(new PowerUp(canvas.width, canvas.height, this.x, this.y, powerUpType.Beam));
+                        }
+                    }
+                    this.markedForDeletion = true;
                 }
             });
             // movement
@@ -411,11 +435,10 @@ window.addEventListener('load', function() {
                     projectile.markedForDeletion = true;
                     if (this.health <= 0) {
                         // drop power up condition
-                        if (playerBeamLevel == 0) {
+                        if (playerBeamLevel == 1) {
                             let rand = Math.floor(Math.random() * 101);
-                            if (rand <= 50) {
-                                console.log("dropped power up");
-                                powerUps.push(new PowerUp(canvas.width, canvas.height, this.x, this.y));
+                            if (rand <= 75) {
+                                powerUps.push(new PowerUp(canvas.width, canvas.height, this.x, this.y, powerUpType.Beam));
                             }
                         }
 
@@ -579,9 +602,11 @@ window.addEventListener('load', function() {
     }
 
     class PowerUp {
-        constructor(gameWidth, gameHeight, spawnPosX, spawnPosY) {
+        constructor(gameWidth, gameHeight, spawnPosX, spawnPosY, type) {
             this.gameWidth = gameWidth;
             this.gameHeight = gameHeight;
+
+            this.type = type;
 
             this.image = document.getElementById('powerUpImage');
             this.x = spawnPosX;
@@ -594,6 +619,9 @@ window.addEventListener('load', function() {
             this.player = player;
 
             this.markedForDeletion = false;
+
+            // set the sprite depending on the power up type
+            this.image.src = type;
         }
 
         draw(context) {
@@ -741,6 +769,7 @@ window.addEventListener('load', function() {
         projectiles = [];
         enemyBeams = [];
         effects = [];
+        powerUps = [];
 
         playerBeamLevel = 0;
         playerBeamAmount = 1;
@@ -786,10 +815,10 @@ window.addEventListener('load', function() {
 
         handleProjectiles(deltaTime);
         generateAsteroids(deltaTime);
-        if (score >= 100) {
+        if (score >= 1000) {
             generateMekaShroom(deltaTime);
         }
-        if (score >= 100) {
+        if (score >= 3000) {
             generateTurtleShip(deltaTime);
         }
         handleEnemies(deltaTime);
