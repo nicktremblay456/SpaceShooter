@@ -18,6 +18,7 @@ window.addEventListener('load', function() {
         Beam: 'img/items/power-up-2.png',
         Restore: 'img/items/power-up-3.png'
     };
+    let powerUpDropped = false;
 
     let playerBeamInfos = [ {
             width: 16,
@@ -51,6 +52,8 @@ window.addEventListener('load', function() {
     ];
     let playerBeamLevel = 0;
     let playerBeamAmount = 1;
+
+    let bossSpawned = false;
 
     class InputHandler {
         constructor() {
@@ -231,6 +234,7 @@ window.addEventListener('load', function() {
                             // Restore 1 hp
                             break;
                     }
+                    powerUpDropped = false;
                     powerUp.markedForDeletion = true;
                 }
             });
@@ -380,11 +384,8 @@ window.addEventListener('load', function() {
                     projectile.markedForDeletion = true;
                     effects.push(new Effect(this.x, this.y, 656, 72, 8, 'asteroidExplosionImage'));
                     score += 10;
-                    if (playerBeamLevel == 0) {
-                        let rand = Math.floor(Math.random() * 101);
-                        if (rand <= 75) {
-                            powerUps.push(new PowerUp(canvas.width, canvas.height, this.x, this.y, powerUpType.Beam));
-                        }
+                    if (playerBeamLevel == 0 && !powerUpDropped && score >= 500) {
+                        dropPowerUp(this.x, this.y, 50, powerUpType.Beam);
                     }
                     this.markedForDeletion = true;
                 }
@@ -434,16 +435,12 @@ window.addEventListener('load', function() {
                     this.health--;
                     projectile.markedForDeletion = true;
                     if (this.health <= 0) {
-                        // drop power up condition
-                        if (playerBeamLevel == 1) {
-                            let rand = Math.floor(Math.random() * 101);
-                            if (rand <= 75) {
-                                powerUps.push(new PowerUp(canvas.width, canvas.height, this.x, this.y, powerUpType.Beam));
-                            }
-                        }
-
                         effects.push(new Effect(this.x + this.width/2, this.y + this.height/2, 180, 30, 6, 'mekaExplosionImage'));
                         score += 20;
+                        // drop power up condition
+                        if (playerBeamLevel == 1 && !powerUpDropped) {
+                            dropPowerUp(this.x, this.y, 50, powerUpType.Beam);
+                        }
                         this.markedForDeletion = true;
                     }
                 }
@@ -514,9 +511,12 @@ window.addEventListener('load', function() {
                     this.health--;
                     projectile.markedForDeletion = true;
                     if (this.health <= 0) {
-                        this.markedForDeletion = true;
                         effects.push(new Effect(this.x + 30, this.y + 30, 216, 36, 6, 'turtleExplosionImage'));
                         score += 50;
+                        if (playerBeamAmount == 1 && !powerUpDropped) {
+                            dropPowerUp(this.x, this.y, 50, powerUpType.Projectile);
+                        }
+                        this.markedForDeletion = true;
                     }
                 }
             });
@@ -551,6 +551,181 @@ window.addEventListener('load', function() {
             if (this.y > this.gameHeight - this.height) {
                 this.markedForDeletion = true;
             }
+        }
+    }
+
+    class Drone {
+        constructor(gameWidth, gameHeight, spawnPosX, spawnPosY) {
+            this.gameWidth = gameWidth;
+            this.gameHeight = gameHeight;
+
+            this.image = document.getElementById('droneImage');
+            this.x = spawnPosX;
+            this.y = spawnPosY;
+            this.width = 32;
+            this.height = 39;
+
+            this.health = 3;
+
+            this.speed = 5;
+            this.direction = 'Right';
+
+            this.markedForDeletion = false;
+        }
+
+        draw(context) {
+            context.drawImage(this.image, this.x, this.y, this.width, this.height);
+        }
+
+        update() {
+            // collision
+            projectiles.forEach(projectile => {
+                const dx = (projectile.x + projectile.width/2) - (this.x + this.width/2);
+                const dy = (projectile.y + projectile.height/2) - (this.y + this.height/2);
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < projectile.width/3 + this.width/3) {
+                    this.health--;
+                    projectile.markedForDeletion = true;
+                    if (this.health <= 0) {
+                        effects.push(new Effect(this.x, this.y, 84, 28, 7, 'droneExplosionImage'));
+                        enemyBeams.push(new EnemyBeam(this.gameWidth, this.gameHeight, this.x, this.y + 75, 5, 'Down'));
+                        score += 10;
+                        if (playerBeamLevel == 2 && !powerUpDropped) {
+                            dropPowerUp(this.x, this.y, 10, powerUpType.Beam);
+                        }
+                        this.markedForDeletion = true;
+                    }
+                }
+            });
+
+            // movement
+            if (this.direction == 'Right') {
+                this.x += this.speed;
+            } else if (this.direction == 'Left') {
+                this.x -= this.speed;
+            }
+            
+            if (this.x >= this.gameWidth - this.width && this.direction != 'Left') {
+                this.direction = 'Left';
+                this.y += this.height * 2;
+            }
+            else if (this.x <= 0 && this.direction != 'Right') {
+                this.direction = 'Right';
+                this.y += this.height * 2;
+            }
+
+            // destroy the turtle when out of bound
+            if (this.y > this.gameHeight - this.height) {
+                this.markedForDeletion = true;
+            }
+        }
+    }
+
+    class Boss {
+        constructor(gameWidth, gameHeight) {
+            this.gameWidth = gameWidth;
+            this.gameHeight = gameHeight;
+
+            this.image = document.getElementById('bossImage');
+            this.width = 530;
+            this.height = 636;
+            this.x = gameWidth/2 - this.width/2;
+            this.y = 0 - this.height;
+
+            this.health = 200;
+
+            this.speed = 1;
+            this.direction = 'Left';
+
+            this.fireRate = 1000;
+            this.resetFireRate = this.fireRate;
+
+            this.ready = false;
+            this.markedForDeletion = false;
+        }
+
+        draw(context) {
+            context.drawImage(this.image, this.x, this.y, this.width, this.height);
+            if (this.ready) {
+                this.displayBossStatus(context);
+            }
+        }
+
+        update(deltaTime) {
+            if (!this.ready) {
+                this.y += this.speed;
+                if (this.y >= 0 - this.height/2) {
+                    this.ready = true;
+                }
+            } else {
+                // collision
+                projectiles.forEach(projectile => {
+                    const dx = (projectile.x + projectile.width/2) - (this.x + this.width/2);
+                    const dy = (projectile.y + projectile.height/2) - (this.y + this.height/2);
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < projectile.width/3 + this.width/3) {
+                        this.health--;
+                        projectile.markedForDeletion = true;
+                        if (this.health <= 0) {
+                            for (let i = 0; i < 10; i++) {
+                                let randX = Math.floor(Math.random() * this.width);
+                                let randY = Math.floor(Math.random() * this.height/2);
+                                effects.push(new Effect(randX, randY, 656, 72, 8, 'asteroidExplosionImage'));
+                            }
+                            score += 1000;
+                            this.markedForDeletion = true;
+                        }
+                    }
+                });
+
+                if (this.fireRate <= 0) {
+                    this.fireRate = this.resetFireRate;
+                    // spawn 3 projectiles
+                    let dir = '';
+                    for (let i = 0; i < 3; i++) {
+                        switch(i) {
+                            case 0:
+                                dir = 'Down';
+                                break;
+                            case 1: 
+                                dir = 'Down Left';
+                                break;
+                            case 2:
+                                dir = 'Down Right';
+                                break;
+                        }
+                        enemyBeams.push(new EnemyBeam(this.gameWidth, this.gameHeight, (this.x + this.width/2) - 65, this.y + this.height - 50, 5, dir));
+                        enemyBeams.push(new EnemyBeam(this.gameWidth, this.gameHeight, (this.x + this.width/2) + 65, this.y + this.height - 50, 5, dir));
+                    }
+                }
+                else {
+                    this.fireRate -= deltaTime;
+                }
+    
+                // movement
+                if (this.direction == 'Right') {
+                    this.x += this.speed;
+                } else if (this.direction == 'Left') {
+                    this.x -= this.speed;
+                }
+    
+                if (this.x >= this.gameWidth - this.width && this.direction != 'Left') {
+                    this.direction = 'Left';
+                }
+                else if (this.x <= 0 && this.direction != 'Right') {
+                    this.direction = 'Right';
+                }
+            }
+        }
+
+        displayBossStatus(context) {
+            context.textAlign = "left";
+            context.font = "40px Halvetica";
+            // custom shadow effect
+            context.fillStyle = "black";
+            context.fillText("Boss: " + this.health, this.width - 55, 50);
+            context.fillStyle = "white";
+            context.fillText("Boss: " + this.health, this.width - 57, 52);
         }
     }
 
@@ -634,6 +809,7 @@ window.addEventListener('load', function() {
 
             // destroy the power up when out of bound
             if (this.y > this.gameHeight - this.height) {
+                powerUpDropped = false;
                 this.markedForDeletion = true;
             }
         }
@@ -687,6 +863,69 @@ window.addEventListener('load', function() {
         }
     }
 
+    function dropPowerUp(spawnPosX, spawnPosY, dropRate, type) {
+        let rand = Math.floor(Math.random() * 101);
+        if (rand <= dropRate) { //50%
+            powerUps.push(new PowerUp(canvas.width, canvas.height, spawnPosX, spawnPosY, type));
+            powerUpDropped = true;
+        }
+    }
+
+    function generateAsteroids(deltaTime) {
+        let randomAmount = Math.floor(Math.random() * 10) + 1;
+        
+        if (asteroidTimer > asteroidInterval + randomAsteroidInterval) {
+            for(let i = 0; i < randomAmount; i++) {
+                let randSpawnPosX = Math.random() * canvas.width - 42;
+                enemies.push(new Asteroid(canvas.width, canvas.height, randSpawnPosX, -canvas.height));
+            }
+            randomAsteroidInterval = Math.floor(Math.random() * 1000) + 500;// random number between 500 - 1000
+            asteroidTimer = 0;
+        } else {
+            asteroidTimer += deltaTime
+        }
+    }
+
+    function generateMekaShroom(deltaTime) {
+        if (mekaTimer > mekaInterval + randomMekaInterval) {
+            let randSpawnPosX = Math.floor(Math.random() * canvas.width - 90 * 2) + 90;
+            for (let i = 0; i < 2; i++) {
+                enemies.push(new MekaShroom(canvas.width, canvas.height, randSpawnPosX, 0));
+                randSpawnPosX += 100;
+            }
+            randomMekaInterval = Math.floor(Math.random() * 2500) + 1500;
+            mekaTimer = 0;
+        } else {
+            mekaTimer += deltaTime;
+        }
+    }
+
+    function generateTurtleShip(deltaTime) {
+        if (turtleTimer > turtleInterval + randomTurtleInterval) {
+            let randSpawnPosX = Math.floor(Math.random() * canvas.width - 98) + 98;
+            enemies.push(new TurtleShip(canvas.width, canvas.height, randSpawnPosX, 0));
+            randomTurtleInterval = Math.floor(Math.random() * 2500) + 1500;
+            turtleTimer = 0;
+        } else {
+            turtleTimer += deltaTime;
+        }
+    }
+
+    function generateDrone(deltaTime) {
+        if (droneTimer > droneInterval + randomDroneInterval) {
+            let offset = 0;
+            for (let i = 0; i < 10; i++) {
+                let drone = new Drone(canvas.width, canvas.height, 0 + offset, 0);
+                enemies.push(drone);
+                offset += drone.width * 2;
+            }
+            randomDroneInterval = Math.floor(Math.random() * 10000) + 9500;
+            droneTimer = 0;
+        } else {
+            droneTimer += deltaTime;
+        }
+    }
+
     // Also handle effects
     function handleProjectiles(deltaTime) {
         projectiles.forEach(projectile => {
@@ -713,46 +952,6 @@ window.addEventListener('load', function() {
         effects = effects.filter(effect => !effect.markedForDeletion);
     }
 
-    function generateAsteroids(deltaTime) {
-        let randomAmount = Math.floor(Math.random() * 10) + 1;
-        
-        if (asteroidTimer > asteroidInterval + randomAsteroidInterval) {
-            for(let i = 0; i < randomAmount; i++) {
-                let randSpawnPosX = Math.random() * canvas.width - 42;
-                enemies.push(new Asteroid(canvas.width, canvas.height, randSpawnPosX, -canvas.height));
-            }
-            randomAsteroidInterval = Math.floor(Math.random() * 1000) + 500;// random number between 500 - 1000
-            asteroidTimer = 0;
-        } else {
-            asteroidTimer += deltaTime
-        }
-    }
-
-    function generateMekaShroom(deltaTime) {
-        if (mekaTimer > mekaInterval + randomMekaInterval) {
-            let randSpawnPosX = Math.floor(Math.random() * canvas.width - 90) + 90;
-            for (let i = 0; i < 2; i++) {
-                enemies.push(new MekaShroom(canvas.width, canvas.height, randSpawnPosX, 0));
-                randSpawnPosX += 100;
-            }
-            randomMekaInterval = Math.floor(Math.random() * 2500) + 1500;
-            mekaTimer = 0;
-        } else {
-            mekaTimer += deltaTime;
-        }
-    }
-
-    function generateTurtleShip(deltaTime) {
-        if (turtleTimer > turtleInterval + randomTurtleInterval) {
-            let randSpawnPosX = Math.floor(Math.random() * canvas.width - 98) + 98;
-            enemies.push(new TurtleShip(canvas.width, canvas.height, randSpawnPosX, 0));
-            randomTurtleInterval = Math.floor(Math.random() * 2500) + 1500;
-            turtleTimer = 0;
-        } else {
-            turtleTimer += deltaTime;
-        }
-    }
-
     function handleEnemies(deltaTime) {
         enemies.forEach(enemy => {
             enemy.draw(ctx);
@@ -775,6 +974,9 @@ window.addEventListener('load', function() {
         playerBeamAmount = 1;
 
         score = 0;
+       
+        powerUpDropped = false;
+        bossSpawned = false;
         gameOver = false;
 
         // restart game
@@ -799,6 +1001,10 @@ window.addEventListener('load', function() {
     let turtleInterval = 2500;
     let randomTurtleInterval = Math.floor(Math.random() * 2500) + 1500;
 
+    let droneTimer = 0;
+    let droneInterval = 1000;
+    let randomDroneInterval = Math.floor(Math.random() * 10000) + 9500;
+
     // main
     function animate(timeStamp) {
         const deltaTime = timeStamp - lastTime;
@@ -814,12 +1020,27 @@ window.addEventListener('load', function() {
         player.update(input, deltaTime);
 
         handleProjectiles(deltaTime);
-        generateAsteroids(deltaTime);
-        if (score >= 1000) {
-            generateMekaShroom(deltaTime);
+        if (!bossSpawned) {
+            generateAsteroids(deltaTime);
+            if (score >= 1000) {
+                generateMekaShroom(deltaTime);
+            }
+            if (score >= 3000) {
+                generateTurtleShip(deltaTime);
+            }
+            if (score >= 4200) {
+                generateDrone(deltaTime);
+            }
         }
-        if (score >= 3000) {
-            generateTurtleShip(deltaTime);
+        if (score >= 6000 && !bossSpawned) {
+            // destroy every enemy for the boss fight
+            // set markedForDeletion to true for the enemy explosion effect, else it look weird
+            enemies.forEach(enemy => {
+                enemy.markedForDeletion = true;
+            })
+            enemies = [];
+            enemies.push(new Boss(canvas.width, canvas.height));
+            bossSpawned = true;
         }
         handleEnemies(deltaTime);
 
