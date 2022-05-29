@@ -54,6 +54,7 @@ window.addEventListener('load', function() {
     let playerBeamAmount = 1;
 
     let bossSpawned = false;
+    let bossDefeated = false;
 
     class InputHandler {
         constructor() {
@@ -241,7 +242,7 @@ window.addEventListener('load', function() {
         }
 
         calculateCollision(x, y, width, height) {
-            const dx = (x + width/2) - (this.x + width/2);
+            const dx = (x + width/2) - (this.x + width/2 + 20);
             const dy = (y + height/2) - (this.y + this.height/2);
             const distance = Math.sqrt(dx * dx + dy * dy);
             if (distance < width/3 + this.width/3) {
@@ -336,6 +337,8 @@ window.addEventListener('load', function() {
                     this.x += this.speed;
                     break;
             }
+
+            //movement
             this.y += this.speed;
 
             // apply horizontal and vertical boundary
@@ -440,6 +443,8 @@ window.addEventListener('load', function() {
                         // drop power up condition
                         if (playerBeamLevel == 1 && !powerUpDropped) {
                             dropPowerUp(this.x, this.y, 50, powerUpType.Beam);
+                        } else if (score >= 7000 && playerBeamLevel <= 3 && !powerUpDropped) {
+                            dropPowerUp(this.x, this.y, 25, powerUpType.Beam);
                         }
                         this.markedForDeletion = true;
                     }
@@ -672,7 +677,10 @@ window.addEventListener('load', function() {
                                 let randY = Math.floor(Math.random() * this.height/2);
                                 effects.push(new Effect(randX, randY, 656, 72, 8, 'asteroidExplosionImage'));
                             }
+                            dropPowerUp(this.x, this.y, 100, powerUpType.Projectile);
                             score += 1000;
+                            bossSpawned = false;
+                            bossDefeated = true;
                             this.markedForDeletion = true;
                         }
                     }
@@ -861,6 +869,13 @@ window.addEventListener('load', function() {
             context.fillStyle = "red";
             context.fillText("Game Over, Press Enter To Restart!", canvas.width/2 + 2, 202);
         }
+        //if (bossDefeated) {
+        //    context.textAlign = "center";
+        //    context.fillStyle = "black";
+        //    context.fillText("Victory", canvas.width/2, canvas.height/2);
+        //    context.fillStyle = "blue";
+        //    context.fillText("Victory", canvas.width/2 + 2, canvas.height/2 + 2);
+        //}
     }
 
     function dropPowerUp(spawnPosX, spawnPosY, dropRate, type) {
@@ -977,6 +992,7 @@ window.addEventListener('load', function() {
        
         powerUpDropped = false;
         bossSpawned = false;
+        bossDefeated = false;
         gameOver = false;
 
         // restart game
@@ -1032,9 +1048,10 @@ window.addEventListener('load', function() {
                 generateDrone(deltaTime);
             }
         }
-        if (score >= 6000 && !bossSpawned) {
+
+        // first boss
+        if (score >= 6000 && !bossDefeated && !bossSpawned) {
             // destroy every enemy for the boss fight
-            // set markedForDeletion to true for the enemy explosion effect, else it look weird
             enemies.forEach(enemy => {
                 enemy.markedForDeletion = true;
             })
