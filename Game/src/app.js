@@ -55,6 +55,7 @@ window.addEventListener('load', function() {
 
     let bossSpawned = false;
     let bossDefeated = false;
+    let gamePaused = false;
 
     class InputHandler {
         constructor() {
@@ -75,6 +76,9 @@ window.addEventListener('load', function() {
                         if (gameOver) {
                             restartGame();
                         }
+                        break;
+                    case 'Escape':
+                        gamePaused = !gamePaused;
                         break;
                 }
             });
@@ -855,6 +859,19 @@ window.addEventListener('load', function() {
     }
 
     function displayUI(context) {
+        if (gamePaused) {
+            context.fillStyle = 'black';
+            context.globalAlpha = 0.75;
+            context.fillRect(0, canvas.height / 2 - 30, canvas.width, 60);
+
+            context.globalAlpha = 1;
+            context.fillStyle = 'white';
+            context.font = '36px monospace';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillText("Paused", canvas.width / 2, canvas.height / 2);
+        }
+
         context.textAlign = "left";
         context.font = "40px Halvetica";
         // custom shadow effect
@@ -1023,6 +1040,12 @@ window.addEventListener('load', function() {
 
     // main
     function animate(timeStamp) {
+        if (gamePaused) {
+            displayUI(ctx);
+            requestAnimationFrame(animate);
+            return;
+        }
+
         const deltaTime = timeStamp - lastTime;
         lastTime = timeStamp;
 
