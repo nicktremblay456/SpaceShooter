@@ -287,6 +287,11 @@ window.addEventListener('load', function() {
                 this.markedForDeletion = true;
             }
         }
+
+        hit() {
+            effects.push(new Effect(this.x, this.y, 70, 28, 5, 'beamHitImage'));
+            this.markedForDeletion = true;
+        }
     }
 
     class EnemyBeam {
@@ -440,8 +445,8 @@ window.addEventListener('load', function() {
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 if (distance < projectile.width/3 + this.width/3) {
                     this.health--;
-                    projectile.markedForDeletion = true;
                     if (this.health <= 0) {
+                        projectile.markedForDeletion = true;
                         effects.push(new Effect(this.x + this.width/2, this.y + this.height/2, 180, 30, 6, 'mekaExplosionImage'));
                         score += 20;
                         // drop power up condition
@@ -451,6 +456,8 @@ window.addEventListener('load', function() {
                             dropPowerUp(this.x, this.y, 25, powerUpType.Beam);
                         }
                         this.markedForDeletion = true;
+                    } else {
+                        projectile.hit();
                     }
                 }
             });
@@ -518,14 +525,16 @@ window.addEventListener('load', function() {
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 if (distance < projectile.width/3 + this.width/3) {
                     this.health--;
-                    projectile.markedForDeletion = true;
                     if (this.health <= 0) {
+                        projectile.markedForDeletion = true;
                         effects.push(new Effect(this.x + 30, this.y + 30, 216, 36, 6, 'turtleExplosionImage'));
                         score += 50;
                         if (playerBeamAmount == 1 && !powerUpDropped) {
                             dropPowerUp(this.x, this.y, 50, powerUpType.Projectile);
                         }
                         this.markedForDeletion = true;
+                    } else {
+                        projectile.hit();
                     }
                 }
             });
@@ -594,8 +603,8 @@ window.addEventListener('load', function() {
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 if (distance < projectile.width/3 + this.width/3) {
                     this.health--;
-                    projectile.markedForDeletion = true;
                     if (this.health <= 0) {
+                        projectile.markedForDeletion = true;
                         effects.push(new Effect(this.x, this.y, 84, 28, 7, 'droneExplosionImage'));
                         enemyBeams.push(new EnemyBeam(this.gameWidth, this.gameHeight, this.x, this.y + 75, 5, 'Down'));
                         score += 10;
@@ -603,6 +612,8 @@ window.addEventListener('load', function() {
                             dropPowerUp(this.x, this.y, 10, powerUpType.Beam);
                         }
                         this.markedForDeletion = true;
+                    } else {
+                        projectile.hit();
                     }
                 }
             });
