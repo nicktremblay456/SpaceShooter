@@ -22,3 +22,15 @@ canvas {
 img {
     display: none;
 }
+
+p {
+    font-size: 1.2rem;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    margin: 20px;
+
+    color: white;
+}
